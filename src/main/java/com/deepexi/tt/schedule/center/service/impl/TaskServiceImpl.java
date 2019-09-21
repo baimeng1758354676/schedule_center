@@ -1,9 +1,11 @@
 package com.deepexi.tt.schedule.center.service.impl;
 
 import cn.hutool.http.HttpRequest;
+import cn.hutool.http.HttpResponse;
 import cn.hutool.http.HttpStatus;
 import com.deepexi.tt.schedule.center.dao.ITaskDao;
 import com.deepexi.tt.schedule.center.domain.bo.Task;
+import com.deepexi.tt.schedule.center.enums.HttpExceptionMessageEnums;
 import com.deepexi.tt.schedule.center.enums.QueueCapacityEnums;
 import com.deepexi.tt.schedule.center.enums.TaskStatusEnums;
 import com.deepexi.tt.schedule.center.service.ITaskService;
@@ -13,6 +15,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 
 import java.util.Comparator;
 import java.util.Date;
@@ -74,7 +77,7 @@ public class TaskServiceImpl implements ITaskService, CommandLineRunner {
     }
 
     @Override
-    @Scheduled(cron = "0/2 * * * * ? ")
+    @Scheduled(cron = "0/9 * * * * ? ")
     public void findTaskQueue() {
         //查询近期未处理的任务集合
         System.out.println(new Date(System.currentTimeMillis() + Constant.TASK_TIME_LIMITED_IN_MILLIS));
@@ -84,12 +87,14 @@ public class TaskServiceImpl implements ITaskService, CommandLineRunner {
         tasks.parallelStream().forEach(task -> {
             //如果不在队列中，则加入队列
             if (!taskQueue.parallelStream().filter(t -> t.getId().equals(task.getId())).findAny().isPresent()) {
-                taskQueue.add(task);
                 System.out.println("provider : " + task);
+                taskQueue.add(task);
+                System.out.println("队列长度 ：" + taskQueue.size());
+
             }
         });
 
-        System.out.println("队列长度 ：" + taskQueue.size());
+
     }
 
 
@@ -119,9 +124,21 @@ public class TaskServiceImpl implements ITaskService, CommandLineRunner {
     private boolean executeRequest(HttpRequest request) {
         int count = 0;
         while (true) {
-            if (request.execute().getStatus() == HttpStatus.HTTP_OK) {
-                System.out.println("ok");
-                return true;
+            try {
+                if (ObjectUtils.isEmpty(request)) {
+                    throw new Exception(HttpExceptionMessageEnums.REQUEST_IS_NULL);
+                }
+                HttpResponse response = request.execute();
+                if (ObjectUtils.isEmpty(response)) {
+                    throw new Exception(HttpExceptionMessageEnums.RESPONSE_IS_NULL);
+                }
+                if (response.getStatus() == HttpStatus.HTTP_OK) {
+                    System.out.println("ok");
+                    return true;
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                return false;
             }
             count++;
             if (count >= Constant.REQUEST_TIME) {
@@ -133,7 +150,7 @@ public class TaskServiceImpl implements ITaskService, CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        System.out.println("启动");
+        System.out.println("启动队列消费者……");
         consumeTaskQueue();
     }
 }
