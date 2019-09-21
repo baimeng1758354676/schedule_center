@@ -77,4 +77,17 @@ public class Task implements Serializable {
     public void setStatus(Integer status) {
         this.status = status;
     }
+
+    @Override
+    public String toString() {
+        return "Task{" +
+                "id=" + id +
+                ", method='" + method + '\'' +
+                ", createTime=" + createTime +
+                ", data='" + data + '\'' +
+                ", url='" + url + '\'' +
+                ", status=" + status +
+                ", executeTime=" + executeTime +
+                '}';
+    }
 }

@@ -9,10 +9,11 @@ import com.deepexi.tt.schedule.center.enums.TaskStatusEnums;
 import com.deepexi.tt.schedule.center.service.ITaskService;
 import com.deepexi.tt.schedule.center.util.Constant;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.CommandLineRunner;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
@@ -25,7 +26,8 @@ import java.util.function.Function;
  * @author 白猛
  */
 @Service
-public class TaskServiceImpl implements ITaskService {
+@Component
+public class TaskServiceImpl implements ITaskService, CommandLineRunner {
 
     private static BlockingQueue<Task> taskQueue = new PriorityBlockingQueue<>(QueueCapacityEnums.QUEUE_INITIAL_CAPACITY, Comparator.comparingLong(t -> t.getExecuteTime().getTime()));
 
@@ -72,33 +74,38 @@ public class TaskServiceImpl implements ITaskService {
     }
 
     @Override
-    @Scheduled(cron = "0/3 * * * * ?")
+    @Scheduled(cron = "0/2 * * * * ? ")
     public void findTaskQueue() {
         //查询近期未处理的任务集合
+        System.out.println(new Date(System.currentTimeMillis() + Constant.TASK_TIME_LIMITED_IN_MILLIS));
         List<Task> tasks = taskDao.findTaskQueue
                 (new Date(System.currentTimeMillis() + Constant.TASK_TIME_LIMITED_IN_MILLIS),
                         TaskStatusEnums.TASK_STATUS_NOT_EXECUTED);
-
         tasks.parallelStream().forEach(task -> {
             //如果不在队列中，则加入队列
-            if (!taskQueue.contains(task)) {
+            if (!taskQueue.parallelStream().filter(t -> t.getId().equals(task.getId())).findAny().isPresent()) {
                 taskQueue.add(task);
+                System.out.println("provider : " + task);
             }
         });
+
+        System.out.println("队列长度 ：" + taskQueue.size());
     }
 
+
     @Override
-    @PostConstruct
     public void consumeTaskQueue() {
         while (true) {
             try {
                 Task task = taskQueue.take();
-                if (task.getExecuteTime().after(new Date())) {
+                System.out.println("consumer:" + task);
+                if (task.getExecuteTime().before(new Date())) {
                     Integer status = executeRequest(cvt.apply(task))
                             ? TaskStatusEnums.TASK_STATUS_EXECUTED_SUCCESS
                             : TaskStatusEnums.TASK_STATUS_EXECUTED_FAILED;
                     task.setStatus(status);
                     taskDao.save(task);
+                    System.out.println("consumer : success");
                 } else {
                     taskQueue.add(task);
                 }
@@ -113,6 +120,7 @@ public class TaskServiceImpl implements ITaskService {
         int count = 0;
         while (true) {
             if (request.execute().getStatus() == HttpStatus.HTTP_OK) {
+                System.out.println("ok");
                 return true;
             }
             count++;
@@ -121,5 +129,11 @@ public class TaskServiceImpl implements ITaskService {
             }
         }
         return false;
+    }
+
+    @Override
+    public void run(String... args) throws Exception {
+        System.out.println("启动");
+        consumeTaskQueue();
     }
 }
