@@ -20,7 +20,7 @@ public class TaskController {
     }
 
     @GetMapping(path = "/{id}")
-    public Task getTask(@PathVariable String id) {
+    public Task getTask(@PathVariable("id") String id) {
         return null;
     }
 }

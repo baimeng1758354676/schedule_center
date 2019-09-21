@@ -2,6 +2,9 @@ package com.deepexi.tt.schedule.center.service;
 
 import com.deepexi.tt.schedule.center.domain.bo.Task;
 
+/**
+ * @author 白猛
+ */
 public interface ITaskService {
     /**
      * 新增任务
@@ -21,7 +24,7 @@ public interface ITaskService {
 
 
     /**
-     * 执行任务
+     * 消费任务队列
      */
-    void executeTask();
+    void consumeTaskQueue();
 }

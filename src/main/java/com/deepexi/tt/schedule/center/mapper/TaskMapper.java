@@ -6,8 +6,17 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Date;
 import java.util.List;
 
+/**
+ * @author 白猛
+ */
 public interface TaskMapper extends JpaRepository<TaskDo, Integer> {
 
+    /**
+     * 根据id查询
+     *
+     * @param id
+     * @return
+     */
     TaskDo findFirstById(Integer id);
 
 

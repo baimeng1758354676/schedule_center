@@ -9,7 +9,6 @@ import java.util.Date;
 public class Task implements Serializable {
     private Integer id;
 
-    private Integer timeLimited;
 
     private String method;
 
@@ -37,14 +36,6 @@ public class Task implements Serializable {
 
     public void setId(Integer id) {
         this.id = id;
-    }
-
-    public Integer getTimeLimited() {
-        return timeLimited;
-    }
-
-    public void setTimeLimited(Integer timeLimited) {
-        this.timeLimited = timeLimited;
     }
 
     public String getMethod() {

@@ -4,6 +4,7 @@ import cn.hutool.http.HttpRequest;
 import cn.hutool.http.HttpStatus;
 import com.deepexi.tt.schedule.center.dao.ITaskDao;
 import com.deepexi.tt.schedule.center.domain.bo.Task;
+import com.deepexi.tt.schedule.center.enums.QueueCapacityEnums;
 import com.deepexi.tt.schedule.center.enums.TaskStatusEnums;
 import com.deepexi.tt.schedule.center.service.ITaskService;
 import com.deepexi.tt.schedule.center.util.Constant;
@@ -11,21 +12,29 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
-import java.util.Queue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
+/**
+ * @author 白猛
+ */
 @Service
 public class TaskServiceImpl implements ITaskService {
 
-    private static Queue<Task> taskQueue = new PriorityBlockingQueue<>();
+    private static BlockingQueue<Task> taskQueue = new PriorityBlockingQueue<>(QueueCapacityEnums.QUEUE_INITIAL_CAPACITY, Comparator.comparingLong(t -> t.getExecuteTime().getTime()));
+
+//    private static ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(3, 6, 60, TimeUnit.SECONDS, new PriorityBlockingQueue<Runnable>());
+
     @Autowired
     ITaskDao taskDao;
+
+
     Function<Task, HttpRequest> cvt = t -> {
         if (t == null) {
             return null;
@@ -44,62 +53,66 @@ public class TaskServiceImpl implements ITaskService {
         }
         return request;
     };
-    private ReentrantLock lock = new ReentrantLock();
+
 
     @Override
     public Task save(Task task) {
-        taskQueue.add(task);
-        return taskDao.save(task);
+        //判断并加入任务队列
+        taskDao.save(task);
+        judgeAndAddToTaskQueue(task);
+        return task;
+    }
+
+    private void judgeAndAddToTaskQueue(Task task) {
+        if (Optional.ofNullable(task).isPresent() && Optional.ofNullable(task.getExecuteTime()).isPresent()) {
+            if (task.getExecuteTime().before(new Date(System.currentTimeMillis() + Constant.TASK_TIME_LIMITED_IN_MILLIS))) {
+                taskQueue.add(task);
+            }
+        }
     }
 
     @Override
-    @Scheduled(cron = "0/5 * * * * ?")
+    @Scheduled(cron = "0/3 * * * * ?")
     public void findTaskQueue() {
-        //查询近期要处理的任务集合
+        //查询近期未处理的任务集合
         List<Task> tasks = taskDao.findTaskQueue
                 (new Date(System.currentTimeMillis() + Constant.TASK_TIME_LIMITED_IN_MILLIS),
-                        TaskStatusEnums.TASK_STATUS_NOT_PUT);
-        //放入任务队列
+                        TaskStatusEnums.TASK_STATUS_NOT_EXECUTED);
+
         tasks.parallelStream().forEach(task -> {
+            //如果不在队列中，则加入队列
             if (!taskQueue.contains(task)) {
-                if (taskQueue.add(task)) {
-                    //成功放入内存，修改状态为   已放入
-                    task.setStatus(TaskStatusEnums.TASK_STATUS_PUT);
-                    taskDao.save(task);
-                }
+                taskQueue.add(task);
             }
         });
     }
 
     @Override
-    @Scheduled(cron = "0/5 * * * * ?")
-    public void executeTask() {
-        List<Task> collect = taskQueue.parallelStream()
-                .filter(task -> new Date().after(task.getExecuteTime()))
-                .collect(Collectors.toList());
-        lock.lock();
-        taskQueue.removeAll(collect);
-        lock.unlock();
-        collect.parallelStream().forEach(task -> {
-            if (new Date().after(task.getExecuteTime())) {
-                //执行请求
-                Integer rs = executeRequest(cvt.apply(task))
-                        ? TaskStatusEnums.TASK_STATUS_EXECUTED_SUCCESS
-                        : TaskStatusEnums.TASK_STATUS_EXECUTED_FAILED;
-                task.setStatus(rs);
-                //从队列中移除
-                taskQueue.remove(task);
-                //更新数据库的任务状态（成功/失败）
-                taskDao.save(task);
+    @PostConstruct
+    public void consumeTaskQueue() {
+        while (true) {
+            try {
+                Task task = taskQueue.take();
+                if (task.getExecuteTime().after(new Date())) {
+                    Integer status = executeRequest(cvt.apply(task))
+                            ? TaskStatusEnums.TASK_STATUS_EXECUTED_SUCCESS
+                            : TaskStatusEnums.TASK_STATUS_EXECUTED_FAILED;
+                    task.setStatus(status);
+                    taskDao.save(task);
+                } else {
+                    taskQueue.add(task);
+                }
+                Thread.sleep(Constant.TASK_QUEUE_CONSUMER_THREAD_SLEEP_TIME_IN_MILLIS);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
-        });
+        }
     }
 
     private boolean executeRequest(HttpRequest request) {
         int count = 0;
         while (true) {
             if (request.execute().getStatus() == HttpStatus.HTTP_OK) {
-                System.out.println(111);
                 return true;
             }
             count++;

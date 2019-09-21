@@ -4,6 +4,9 @@ import javax.persistence.*;
 import java.io.Serializable;
 import java.util.Date;
 
+/**
+ * @author 白猛
+ */
 @Entity
 @Table(name = "task")
 public class TaskDo implements Serializable {
@@ -11,8 +14,6 @@ public class TaskDo implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column(name = "time_limited")
-    private Integer timeLimited;
 
     private String method;
 
@@ -43,13 +44,6 @@ public class TaskDo implements Serializable {
         this.id = id;
     }
 
-    public Integer getTimeLimited() {
-        return timeLimited;
-    }
-
-    public void setTimeLimited(Integer timeLimited) {
-        this.timeLimited = timeLimited;
-    }
 
     public String getMethod() {
         return method;

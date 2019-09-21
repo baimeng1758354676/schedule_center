@@ -5,6 +5,9 @@ import com.deepexi.tt.schedule.center.domain.bo.Task;
 import java.util.Date;
 import java.util.List;
 
+/**
+ * @author 白猛
+ */
 public interface ITaskDao {
 
     /**
@@ -16,6 +19,12 @@ public interface ITaskDao {
     Task save(Task task);
 
 
+    /**
+     * 根据id查询任务
+     *
+     * @param id
+     * @return
+     */
     Task findById(Integer id);
 
     /**
