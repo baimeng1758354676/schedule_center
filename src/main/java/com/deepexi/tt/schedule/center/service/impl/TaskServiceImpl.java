@@ -1,13 +1,11 @@
 package com.deepexi.tt.schedule.center.service.impl;
 
 import cn.hutool.http.HttpRequest;
-import cn.hutool.http.HttpResponse;
-import cn.hutool.http.HttpStatus;
 import com.deepexi.tt.schedule.center.dao.ITaskDao;
 import com.deepexi.tt.schedule.center.domain.bo.Task;
-import com.deepexi.tt.schedule.center.enums.HttpExceptionMessageEnums;
 import com.deepexi.tt.schedule.center.enums.QueueCapacityEnums;
 import com.deepexi.tt.schedule.center.enums.TaskStatusEnums;
+import com.deepexi.tt.schedule.center.service.IExecuteRequestService;
 import com.deepexi.tt.schedule.center.service.ITaskService;
 import com.deepexi.tt.schedule.center.util.Constant;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,7 +13,6 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
-import org.springframework.util.ObjectUtils;
 
 import java.util.Comparator;
 import java.util.Date;
@@ -39,6 +36,8 @@ public class TaskServiceImpl implements ITaskService, CommandLineRunner {
     @Autowired
     ITaskDao taskDao;
 
+    @Autowired
+    IExecuteRequestService executeRequestService;
 
     Function<Task, HttpRequest> cvt = t -> {
         if (t == null) {
@@ -84,28 +83,31 @@ public class TaskServiceImpl implements ITaskService, CommandLineRunner {
         List<Task> tasks = taskDao.findTaskQueue
                 (new Date(System.currentTimeMillis() + Constant.TASK_TIME_LIMITED_IN_MILLIS),
                         TaskStatusEnums.TASK_STATUS_NOT_EXECUTED);
+
         tasks.parallelStream().forEach(task -> {
             //如果不在队列中，则加入队列
             if (!taskQueue.parallelStream().filter(t -> t.getId().equals(task.getId())).findAny().isPresent()) {
                 System.out.println("provider : " + task);
                 taskQueue.add(task);
                 System.out.println("队列长度 ：" + taskQueue.size());
-
             }
         });
-
-
     }
 
 
+    /**
+     * 消费任务队列
+     */
     @Override
     public void consumeTaskQueue() {
         while (true) {
+
             try {
                 Task task = taskQueue.take();
                 System.out.println("consumer:" + task);
                 if (task.getExecuteTime().before(new Date())) {
-                    Integer status = executeRequest(cvt.apply(task))
+                    //满足执行条件，执行请求
+                    Integer status = executeRequestService.executeRequest(cvt.apply(task))
                             ? TaskStatusEnums.TASK_STATUS_EXECUTED_SUCCESS
                             : TaskStatusEnums.TASK_STATUS_EXECUTED_FAILED;
                     task.setStatus(status);
@@ -115,37 +117,10 @@ public class TaskServiceImpl implements ITaskService, CommandLineRunner {
                     taskQueue.add(task);
                 }
                 Thread.sleep(Constant.TASK_QUEUE_CONSUMER_THREAD_SLEEP_TIME_IN_MILLIS);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    private boolean executeRequest(HttpRequest request) {
-        int count = 0;
-        while (true) {
-            try {
-                if (ObjectUtils.isEmpty(request)) {
-                    throw new Exception(HttpExceptionMessageEnums.REQUEST_IS_NULL);
-                }
-                HttpResponse response = request.execute();
-                if (ObjectUtils.isEmpty(response)) {
-                    throw new Exception(HttpExceptionMessageEnums.RESPONSE_IS_NULL);
-                }
-                if (response.getStatus() == HttpStatus.HTTP_OK) {
-                    System.out.println("ok");
-                    return true;
-                }
             } catch (Exception e) {
                 e.printStackTrace();
-                return false;
-            }
-            count++;
-            if (count >= Constant.REQUEST_TIME) {
-                break;
             }
         }
-        return false;
     }
 
     @Override

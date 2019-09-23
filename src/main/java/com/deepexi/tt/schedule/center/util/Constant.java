@@ -15,7 +15,20 @@ public class Constant {
 
     public static final String METHOD_POST = "POST";
 
-    public static final int REQUEST_TIME = 3;
+    /**
+     * 最大重试次数
+     */
+    public static final int MAX_ATTEMPTS = 2;
+
+    /**
+     * 重试延迟毫秒数
+     */
+    public static final long RETRY_DELAY = 1000L;
+
+    /**
+     * 重试延迟增加倍数
+     */
+    public static final double RETRY_DELAY_MULTIPLIER = 1.2;
 
     /**
      *
