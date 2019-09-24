@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping(path = "/task")
 public class TaskController {
+
     @Autowired
     ITaskService taskService;
 
@@ -20,7 +21,7 @@ public class TaskController {
     }
 
     @GetMapping(path = "/{id}")
-    public Task getTask(@PathVariable("id") String id) {
-        return null;
+    public Task getTask(@PathVariable("id") Integer id) {
+        return taskService.getTask(id);
     }
 }

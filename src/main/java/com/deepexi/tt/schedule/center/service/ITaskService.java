@@ -27,4 +27,12 @@ public interface ITaskService {
      * 消费任务队列
      */
     void consumeTaskQueue();
+
+    /**
+     * 查询单个任务
+     *
+     * @param id
+     * @return
+     */
+    Task getTask(Integer id);
 }

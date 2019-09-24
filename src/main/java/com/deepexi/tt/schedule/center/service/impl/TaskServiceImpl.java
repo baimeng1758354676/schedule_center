@@ -45,15 +45,16 @@ public class TaskServiceImpl implements ITaskService, CommandLineRunner {
         }
         String mt = Optional.ofNullable(t.getMethod()).orElse("").toUpperCase();
         HttpRequest request = null;
+        String url = t.getUrl();
         switch (mt) {
             case Constant.METHOD_GET:
-                request = HttpRequest.get(t.getUrl());
+                request = HttpRequest.get(url);
                 break;
             case Constant.METHOD_POST:
-                request = HttpRequest.post(t.getUrl()).body(t.getData());
+                request = HttpRequest.post(url).body(t.getData());
                 break;
             default:
-                request = HttpRequest.get(t.getUrl());
+                request = HttpRequest.get(url);
         }
         return request;
     };
@@ -61,6 +62,8 @@ public class TaskServiceImpl implements ITaskService, CommandLineRunner {
 
     @Override
     public Task save(Task task) {
+        task.setStatus(TaskStatusEnums.TASK_STATUS_NOT_EXECUTED);
+        task.setId(null);
         //判断并加入任务队列
         taskDao.save(task);
         judgeAndAddToTaskQueue(task);
@@ -68,10 +71,11 @@ public class TaskServiceImpl implements ITaskService, CommandLineRunner {
     }
 
     private void judgeAndAddToTaskQueue(Task task) {
-        if (Optional.ofNullable(task).isPresent() && Optional.ofNullable(task.getExecuteTime()).isPresent()) {
-            if (task.getExecuteTime().before(new Date(System.currentTimeMillis() + Constant.TASK_TIME_LIMITED_IN_MILLIS))) {
-                taskQueue.add(task);
-            }
+        if (Optional.ofNullable(task).isPresent()
+                && Optional.ofNullable(task.getExecuteTime()).isPresent()
+                && task.getExecuteTime().before(new Date(System.currentTimeMillis() + Constant.TASK_TIME_LIMITED_IN_MILLIS))
+                && !taskQueue.parallelStream().filter(t -> t.getId().equals(task.getId())).findAny().isPresent()) {
+            taskQueue.add(task);
         }
     }
 
@@ -101,7 +105,6 @@ public class TaskServiceImpl implements ITaskService, CommandLineRunner {
     @Override
     public void consumeTaskQueue() {
         while (true) {
-
             try {
                 Task task = taskQueue.take();
                 System.out.println("consumer:" + task);
@@ -121,6 +124,11 @@ public class TaskServiceImpl implements ITaskService, CommandLineRunner {
                 e.printStackTrace();
             }
         }
+    }
+
+    @Override
+    public Task getTask(Integer id) {
+        return taskDao.findById(id);
     }
 
     @Override
