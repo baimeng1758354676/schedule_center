@@ -16,7 +16,7 @@ public class TaskController {
     ITaskService taskService;
 
     @PostMapping(path = "/")
-    public Task newTask(@RequestBody Task task) {
+    public Object newTask(@RequestBody Task task) {
         return taskService.save(task);
     }
 

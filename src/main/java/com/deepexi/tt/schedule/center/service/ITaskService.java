@@ -12,7 +12,7 @@ public interface ITaskService {
      * @param task
      * @return
      */
-    Task save(Task task);
+    Object save(Task task);
 
 
     /**

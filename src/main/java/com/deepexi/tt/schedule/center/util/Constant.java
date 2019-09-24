@@ -18,7 +18,7 @@ public class Constant {
     /**
      * 最大重试次数
      */
-    public static final int MAX_ATTEMPTS = 2;
+    public static final int MAX_ATTEMPTS = 3;
 
     /**
      * 重试延迟毫秒数
@@ -31,9 +31,30 @@ public class Constant {
     public static final double RETRY_DELAY_MULTIPLIER = 1.2;
 
     /**
-     *
+     *任务队列消费者线程睡眠时间毫秒数
      */
-    public static final long TASK_QUEUE_CONSUMER_THREAD_SLEEP_TIME_IN_MILLIS = 1000;
+    public static final long TASK_QUEUE_CONSUMER_THREAD_SLEEP_TIME_IN_MILLIS = 1000L;
+
+    /**
+     * 非法参数
+     */
+    public static final String ILLEGAL_PARAMETER = "非法参数！";
+
+    /**
+     * 核心线程数
+     */
+    public static final int CORE_POOL_SIZE = 5;
+    /**
+     * 最大线程数
+     */
+    public static final int MAX_POOL_SIZE = 8;
+    /**
+     * 活跃时间
+     */
+    public static final int KEEP_ALIVE_TIME = 60;
+
+
+
 
 
 }

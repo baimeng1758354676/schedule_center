@@ -13,13 +13,13 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.*;
 import java.util.function.Function;
 
 /**
@@ -31,7 +31,7 @@ public class TaskServiceImpl implements ITaskService, CommandLineRunner {
 
     private static BlockingQueue<Task> taskQueue = new PriorityBlockingQueue<>(QueueCapacityEnums.QUEUE_INITIAL_CAPACITY, Comparator.comparingLong(t -> t.getExecuteTime().getTime()));
 
-//    private static ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(3, 6, 60, TimeUnit.SECONDS, new PriorityBlockingQueue<Runnable>());
+    private static ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(Constant.CORE_POOL_SIZE, Constant.MAX_POOL_SIZE, Constant.KEEP_ALIVE_TIME, TimeUnit.SECONDS, new LinkedBlockingDeque<Runnable>());
 
     @Autowired
     ITaskDao taskDao;
@@ -43,7 +43,7 @@ public class TaskServiceImpl implements ITaskService, CommandLineRunner {
         if (t == null) {
             return null;
         }
-        String mt = Optional.ofNullable(t.getMethod()).orElse("").toUpperCase();
+        String mt = Optional.ofNullable(t.getMethod()).orElse("").toUpperCase().trim();
         HttpRequest request = null;
         String url = t.getUrl();
         switch (mt) {
@@ -61,9 +61,17 @@ public class TaskServiceImpl implements ITaskService, CommandLineRunner {
 
 
     @Override
-    public Task save(Task task) {
+    public Object save(Task task) {
         task.setStatus(TaskStatusEnums.TASK_STATUS_NOT_EXECUTED);
         task.setId(null);
+        //校验参数
+        if (ObjectUtils.isEmpty(task.getExecuteTime())
+                || ObjectUtils.isEmpty(task.getCreateTime())
+                || ObjectUtils.isEmpty(task.getUrl())
+                || ObjectUtils.isEmpty(task.getMethod())
+                || (task.getMethod().trim().toUpperCase().equals(Constant.METHOD_POST) && ObjectUtils.isEmpty(task.getData()))) {
+            return Constant.ILLEGAL_PARAMETER;
+        }
         //判断并加入任务队列
         taskDao.save(task);
         judgeAndAddToTaskQueue(task);
@@ -105,17 +113,28 @@ public class TaskServiceImpl implements ITaskService, CommandLineRunner {
     @Override
     public void consumeTaskQueue() {
         while (true) {
+            System.out.println(Thread.currentThread().getName() + "……");
             try {
                 Task task = taskQueue.take();
-                System.out.println("consumer:" + task);
                 if (task.getExecuteTime().before(new Date())) {
                     //满足执行条件，执行请求
-                    Integer status = executeRequestService.executeRequest(cvt.apply(task))
-                            ? TaskStatusEnums.TASK_STATUS_EXECUTED_SUCCESS
-                            : TaskStatusEnums.TASK_STATUS_EXECUTED_FAILED;
-                    task.setStatus(status);
-                    taskDao.save(task);
-                    System.out.println("consumer : success");
+                    threadPoolExecutor.execute(new Runnable() {
+                        @Override
+                        public void run() {
+                            Integer status = null;
+                            try {
+                                status = executeRequestService.executeRequest(cvt.apply(task))
+                                        ? TaskStatusEnums.TASK_STATUS_EXECUTED_SUCCESS
+                                        : TaskStatusEnums.TASK_STATUS_EXECUTED_FAILED;
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                            task.setStatus(status);
+                            taskDao.save(task);
+                            System.out.println("consumer : success");
+                        }
+                    });
+
                 } else {
                     taskQueue.add(task);
                 }

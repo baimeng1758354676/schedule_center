@@ -18,11 +18,13 @@ import org.springframework.util.ObjectUtils;
  */
 @Service
 public class ExecuteRequestServiceImpl implements IExecuteRequestService {
+    private static int count = 0;
 
     @Override
-    @Retryable(value = Exception.class, maxAttempts = Constant.MAX_ATTEMPTS, backoff = @Backoff(delay = 1000L, multiplier = 1.2))
+    @Retryable(value = Exception.class, maxAttempts = Constant.MAX_ATTEMPTS, backoff = @Backoff(delay = Constant.RETRY_DELAY, multiplier = Constant.RETRY_DELAY_MULTIPLIER))
     public boolean executeRequest(HttpRequest request) throws Exception {
-        System.out.println("执行请求（重试）……");
+        System.out.println(Thread.currentThread().getName() + "  执行请求（重试）……");
+        System.out.println("请求次数 ：" + ++count);
         if (ObjectUtils.isEmpty(request)) {
             throw new Exception(HttpExceptionMessageEnums.REQUEST_IS_NULL);
         }
@@ -42,7 +44,7 @@ public class ExecuteRequestServiceImpl implements IExecuteRequestService {
     @Recover
     public boolean maxAttemptFailed(Exception e) {
         //邮件通知调用者……
-        System.out.println("重试耗尽……");
+        System.out.println(Thread.currentThread().getName() + "  重试耗尽……");
         return false;
     }
 
