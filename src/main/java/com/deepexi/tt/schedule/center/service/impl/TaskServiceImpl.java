@@ -1,5 +1,6 @@
 package com.deepexi.tt.schedule.center.service.impl;
 
+import cn.hutool.core.date.DateUtil;
 import cn.hutool.http.HttpRequest;
 import com.deepexi.tt.schedule.center.dao.ITaskDao;
 import com.deepexi.tt.schedule.center.domain.bo.Task;
@@ -8,8 +9,9 @@ import com.deepexi.tt.schedule.center.enums.TaskStatusEnums;
 import com.deepexi.tt.schedule.center.service.IExecuteRequestService;
 import com.deepexi.tt.schedule.center.service.ITaskService;
 import com.deepexi.tt.schedule.center.util.Constant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.CommandLineRunner;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
@@ -27,7 +29,9 @@ import java.util.function.Function;
  */
 @Service
 @Component
-public class TaskServiceImpl implements ITaskService, CommandLineRunner {
+public class TaskServiceImpl implements ITaskService {
+
+    private static Logger logger = LoggerFactory.getLogger(TaskServiceImpl.class);
 
     private static BlockingQueue<Task> taskQueue = new PriorityBlockingQueue<>(QueueCapacityEnums.QUEUE_INITIAL_CAPACITY, Comparator.comparingLong(t -> t.getExecuteTime().getTime()));
 
@@ -94,14 +98,8 @@ public class TaskServiceImpl implements ITaskService, CommandLineRunner {
                 (new Date(System.currentTimeMillis() + Constant.TASK_TIME_LIMITED_IN_MILLIS),
                         TaskStatusEnums.TASK_STATUS_NOT_EXECUTED);
 
-        tasks.stream().forEach(task -> {
-            //如果不在队列中，则加入队列
-            if (!taskQueue.stream().filter(t -> t.getId().equals(task.getId())).findAny().isPresent()) {
-                System.out.println("provider : " + task);
-                taskQueue.add(task);
-                System.out.println("队列长度 ：" + taskQueue.size());
-            }
-        });
+        taskQueue.clear();
+        taskQueue.addAll(tasks);
     }
 
 
@@ -110,35 +108,35 @@ public class TaskServiceImpl implements ITaskService, CommandLineRunner {
      */
     @Override
     public void consumeTaskQueue() {
-        while (true) {
-            System.out.println(Thread.currentThread().getName() + "……");
-            try {
-                Task task = taskQueue.take();
-                if (task.getExecuteTime().before(new Date())) {
+        try {
+            Task task = taskQueue.peek();
+            if (task != null) {
+                logger.info("取得一个任务");
+                if (DateUtil.compare(task.getExecuteTime(), new Date()) <= 0) {
+                    Task task2 = taskQueue.take();
                     //满足执行条件，执行请求
                     threadPoolExecutor.execute(new Runnable() {
                         @Override
                         public void run() {
+                            logger.info("执行任务");
                             Integer status = null;
                             try {
-                                status = executeRequestService.executeRequest(cvt.apply(task))
+                                status = executeRequestService.executeRequest(cvt.apply(task2))
                                         ? TaskStatusEnums.TASK_STATUS_EXECUTED_SUCCESS
                                         : TaskStatusEnums.TASK_STATUS_EXECUTED_FAILED;
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }
-                            task.setStatus(status);
-                            taskDao.save(task);
-                            System.out.println("consumer : success");
+                            task2.setStatus(status);
+                            taskDao.save(task2);
+                            logger.info("consumer : success");
                         }
                     });
-                } else {
-                    taskQueue.add(task);
                 }
                 Thread.sleep(Constant.TASK_QUEUE_CONSUMER_THREAD_SLEEP_TIME_IN_MILLIS);
-            } catch (Exception e) {
-                e.printStackTrace();
             }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -147,9 +145,4 @@ public class TaskServiceImpl implements ITaskService, CommandLineRunner {
         return taskDao.findById(id);
     }
 
-    @Override
-    public void run(String... args) throws Exception {
-        System.out.println("启动队列消费者……");
-        consumeTaskQueue();
-    }
 }

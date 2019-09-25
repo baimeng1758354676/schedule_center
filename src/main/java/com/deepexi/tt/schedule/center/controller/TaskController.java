@@ -24,4 +24,9 @@ public class TaskController {
     public Task getTask(@PathVariable("id") Integer id) {
         return taskService.getTask(id);
     }
+
+    @GetMapping(path = "/t")
+    public String t() {
+        return "hello";
+    }
 }
