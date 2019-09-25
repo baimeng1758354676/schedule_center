@@ -53,6 +53,11 @@ public class Constant {
      */
     public static final int KEEP_ALIVE_TIME = 60;
 
+    /**
+     * 任务执行时间误差范围
+     */
+    public static final long TASK_EXECUTE_TIME_ERROR_RANGE = 1000 * 10;
+
 
 
 

@@ -1,7 +1,7 @@
 package com.deepexi.tt.schedule.center.controller;
 
 import com.deepexi.tt.schedule.center.domain.bo.Task;
-import com.deepexi.tt.schedule.center.service.ITaskService;
+import com.deepexi.tt.schedule.center.service.ITaskManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 public class TaskController {
 
     @Autowired
-    ITaskService taskService;
+    ITaskManager taskService;
 
     @PostMapping(path = "/")
     public Object newTask(@RequestBody Task task) {

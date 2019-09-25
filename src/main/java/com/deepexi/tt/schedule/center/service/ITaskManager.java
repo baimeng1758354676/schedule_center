@@ -5,7 +5,7 @@ import com.deepexi.tt.schedule.center.domain.bo.Task;
 /**
  * @author 白猛
  */
-public interface ITaskService {
+public interface ITaskManager {
     /**
      * 新增任务
      *
