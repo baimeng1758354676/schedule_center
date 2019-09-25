@@ -18,7 +18,7 @@ public class Constant {
     /**
      * 最大重试次数
      */
-    public static final int MAX_ATTEMPTS = 3;
+    public static final int MAX_ATTEMPTS = 4;
 
     /**
      * 重试延迟毫秒数
@@ -47,7 +47,7 @@ public class Constant {
     /**
      * 最大线程数
      */
-    public static final int MAX_POOL_SIZE = 8;
+    public static final int MAX_POOL_SIZE = 5;
     /**
      * 活跃时间
      */

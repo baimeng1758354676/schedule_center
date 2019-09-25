@@ -79,16 +79,14 @@ public class TaskServiceImpl implements ITaskService, CommandLineRunner {
     }
 
     private void judgeAndAddToTaskQueue(Task task) {
-        if (Optional.ofNullable(task).isPresent()
-                && Optional.ofNullable(task.getExecuteTime()).isPresent()
-                && task.getExecuteTime().before(new Date(System.currentTimeMillis() + Constant.TASK_TIME_LIMITED_IN_MILLIS))
+        if (task.getExecuteTime().before(new Date(System.currentTimeMillis() + Constant.TASK_TIME_LIMITED_IN_MILLIS))
                 && !taskQueue.parallelStream().filter(t -> t.getId().equals(task.getId())).findAny().isPresent()) {
             taskQueue.add(task);
         }
     }
 
     @Override
-    @Scheduled(cron = "0/9 * * * * ? ")
+    @Scheduled(cron = "0 0 0/2 * * ? ")
     public void findTaskQueue() {
         //查询近期未处理的任务集合
         System.out.println(new Date(System.currentTimeMillis() + Constant.TASK_TIME_LIMITED_IN_MILLIS));
@@ -96,9 +94,9 @@ public class TaskServiceImpl implements ITaskService, CommandLineRunner {
                 (new Date(System.currentTimeMillis() + Constant.TASK_TIME_LIMITED_IN_MILLIS),
                         TaskStatusEnums.TASK_STATUS_NOT_EXECUTED);
 
-        tasks.parallelStream().forEach(task -> {
+        tasks.stream().forEach(task -> {
             //如果不在队列中，则加入队列
-            if (!taskQueue.parallelStream().filter(t -> t.getId().equals(task.getId())).findAny().isPresent()) {
+            if (!taskQueue.stream().filter(t -> t.getId().equals(task.getId())).findAny().isPresent()) {
                 System.out.println("provider : " + task);
                 taskQueue.add(task);
                 System.out.println("队列长度 ：" + taskQueue.size());
@@ -134,7 +132,6 @@ public class TaskServiceImpl implements ITaskService, CommandLineRunner {
                             System.out.println("consumer : success");
                         }
                     });
-
                 } else {
                     taskQueue.add(task);
                 }
