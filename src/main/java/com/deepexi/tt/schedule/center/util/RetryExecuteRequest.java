@@ -34,7 +34,7 @@ public class RetryExecuteRequest {
             throw new Exception(HttpExceptionMessageEnums.RESPONSE_IS_NULL);
         }
         if (response.getStatus() == HttpStatus.HTTP_OK) {
-            logger.info("ok");
+            logger.info("ok!");
             return true;
         }
         return false;

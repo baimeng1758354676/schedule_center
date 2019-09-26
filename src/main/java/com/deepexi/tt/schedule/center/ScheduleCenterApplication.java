@@ -32,7 +32,7 @@ public class ScheduleCenterApplication implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) throws Exception {
         new Thread(() -> {
-            logger.info("监听");
+            logger.info("监听……");
             while (true) {
                 taskService.consumeTaskQueue();
                 try {

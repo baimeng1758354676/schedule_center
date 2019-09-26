@@ -25,8 +25,4 @@ public class TaskController {
         return taskService.getTask(id);
     }
 
-    @GetMapping(path = "/t")
-    public String t() {
-        return "hello";
-    }
 }

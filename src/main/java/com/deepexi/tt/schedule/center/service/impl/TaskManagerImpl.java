@@ -51,7 +51,8 @@ public class TaskManagerImpl implements ITaskManager {
                 || ObjectUtils.isEmpty(task.getCreateTime())
                 || ObjectUtils.isEmpty(task.getUrl())
                 || ObjectUtils.isEmpty(task.getMethod())
-                || (task.getMethod().trim().toUpperCase().equals(Constant.METHOD_POST) && ObjectUtils.isEmpty(task.getData()))) {
+                || ObjectUtils.isEmpty(task.getEmail())
+                || !task.getEmail().matches(Constant.EMAIL_PATTERN)) {
             return Constant.ILLEGAL_PARAMETER;
         }
         //判断并加入任务队列
@@ -68,13 +69,12 @@ public class TaskManagerImpl implements ITaskManager {
     }
 
     @Override
-    @Scheduled(cron = "0 0 0/2 * * ? ")
+    @Scheduled(cron = "0 0 0/1 * * ? ")
     public void findTaskQueue() {
         //查询近期未处理的任务集合
         List<Task> tasks = taskDao.findTaskQueue
                 (new Date(System.currentTimeMillis() + Constant.TASK_TIME_LIMITED_IN_MILLIS),
                         TaskStatusEnums.TASK_STATUS_NOT_EXECUTED);
-
         taskQueue.clear();
         taskQueue.addAll(tasks);
     }
@@ -88,8 +88,8 @@ public class TaskManagerImpl implements ITaskManager {
         try {
             Task task = taskQueue.peek();
             if (!ObjectUtils.isEmpty(task)) {
-                logger.info("取得一个任务");
                 if (DateUtil.compare(task.getExecuteTime(), new Date()) <= 0) {
+                    logger.info("取得一个任务");
                     executeTaskService.executeTask(taskQueue.take());
                 }
             }

@@ -1,6 +1,7 @@
 package com.deepexi.tt.schedule.center.service.impl;
 
 import cn.hutool.core.date.DateUtil;
+import cn.hutool.extra.mail.MailUtil;
 import cn.hutool.http.HttpRequest;
 import com.deepexi.tt.schedule.center.dao.ITaskDao;
 import com.deepexi.tt.schedule.center.domain.bo.Task;
@@ -12,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 
 import java.util.Date;
 import java.util.Optional;
@@ -71,7 +73,8 @@ public class ExecuteTaskServiceImpl implements IExecuteTaskService {
     private void taskFailed(Task task) {
         task.setStatus(TaskStatusEnums.TASK_STATUS_EXECUTED_FAILED);
         taskDao.save(task);
-        logger.info("任务失败！");
+        logger.info("任务失败,发送邮件……");
+        MailUtil.send(task.getEmail().trim(), Constant.TASK_FAILED_EMAIL_SUBJECT, Constant.TASK_FAILED_EMAIL_CONTENT_HEADER + task, false);
     }
 
 
@@ -87,7 +90,9 @@ public class ExecuteTaskServiceImpl implements IExecuteTaskService {
                 request = HttpRequest.get(url);
                 break;
             case Constant.METHOD_POST:
-                request = HttpRequest.post(url).body(task.getData());
+                request = ObjectUtils.isEmpty(task.getData())
+                        ? HttpRequest.post(url)
+                        : HttpRequest.post(url).body(task.getData());
                 break;
             default:
                 request = HttpRequest.get(url);

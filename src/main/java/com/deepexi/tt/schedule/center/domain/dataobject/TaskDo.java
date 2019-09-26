@@ -28,6 +28,16 @@ public class TaskDo implements Serializable {
     @Column(name = "execute_time")
     private Date executeTime;
 
+    private String email;
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
     public Date getExecuteTime() {
         return executeTime;
     }
